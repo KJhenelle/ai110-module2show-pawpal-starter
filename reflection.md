@@ -1,6 +1,20 @@
 # PawPal+ Project Reflection
 
 ## 1. System Design
+The App should:
+ - Enter basic owner + pet info
+ - Track pet care tasks ie walks, feeding, meds, enrichment, grooming
+ - Generate a daily schedule/plan
+ - Explain why it chose that plan
+Attributes:
+ - pet info
+ - owner info
+ - time info
+Methods
+ - schedule pet care task
+ - explain scheduling choices
+ - store user info
+ - prioritize important tasks
 
 **a. Initial design**
 
