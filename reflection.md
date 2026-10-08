@@ -67,6 +67,10 @@ Priority
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+My scheduler is greedy and first-fit: it sorts tasks by required, then priority, then preferred time, and puts each one in the first free window that fits. If a task's preferred window is already taken, it falls back to any free window instead of leaving the task unscheduled. In my demo, "Lunch check-in" (preferred 12:00) ended up at 08:35 because the owner was only free 8-9 and 17:00-17:30. The plan is not optimal: a smarter search could shuffle tasks to honor more preferences, and the fallback can put a task far from the time the owner wanted.
+
+This is reasonable for a pet owner because a task done at the wrong time usually beats a task not done at all, and the greedy order guarantees that high-priority and required tasks (meds) get the best windows first. The reason string ("preferred time unavailable") and `detect_conflicts` warnings keep the compromise visible instead of silent. A related tradeoff: `detect_conflicts` compares every pair of preferred times with `TimeSlot.overlaps` (O(n^2)) rather than only exact start-time matches or a sorted sweep. Overlap catches real clashes like 8:00-8:30 vs 8:15-8:45, and with only a few tasks per day the simpler pairwise loop is easier to read than a faster one.
+
 ---
 
 ## 3. AI Collaboration

@@ -74,14 +74,15 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time()` | Orders tasks by preferred start time using a lambda key on `"HH:MM"` strings; tasks with no preferred time go last. |
+| Plan ordering | `Scheduler.prioritize_tasks()` | Required first, then priority, then preferred time, then shorter duration. |
+| Filtering | `Scheduler.filter_tasks()` | Filters by completion status (`completed=True/False`) and/or pet name (case-insensitive). Filters combine; `None` skips one. |
+| Conflict detection | `Scheduler.detect_conflicts()` | Compares every pair of pending tasks' preferred times with `TimeSlot.overlaps()` and returns warning strings (same pet or different pets) instead of raising. Back-to-back tasks are not conflicts. |
+| Recurring tasks | `Task.mark_complete()`, `Task.is_due()` | Completing a `DAILY` task creates a copy due `today + timedelta(days=1)`; a `WEEKLY` task's copy is due 7 days after its due date. `ONCE` tasks do not recur, and completing a task twice does not duplicate it. `is_due()` keeps a recurred copy out of today's plan. |
+
+The scheduler itself is greedy first-fit (`Scheduler.schedule_tasks()`): if a task's preferred window is taken, it falls back to any free window, and the plan's reason text says so. See `reflection.md` section 2b for that tradeoff.
 
 ## 📸 Demo Walkthrough
 

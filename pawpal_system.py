@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from datetime import date, time
+from dataclasses import dataclass, field, replace
+from datetime import date, time, timedelta
 from enum import Enum
+from itertools import combinations
 
 
 class TaskType(Enum):
@@ -73,15 +74,33 @@ class Task:
 
     def is_due(self, day: date) -> bool:
         """True if this task should be done on `day`, based on its frequency and due date."""
-        if self.due_date is None or self.frequency == Frequency.DAILY:
+        if self.due_date is None:
             return True
+        if self.frequency == Frequency.DAILY:
+            return day >= self.due_date  # a recurred copy must not appear before its date
         if self.frequency == Frequency.ONCE:
             return self.due_date == day
         return self.due_date.weekday() == day.weekday()
 
-    def mark_complete(self) -> None:
-        """Mark the task as done."""
+    def mark_complete(self, today: date | None = None) -> Task | None:
+        """Mark the task as done; for DAILY/WEEKLY tasks, queue the next occurrence on the pet.
+
+        Returns the new Task, or None for ONCE tasks or if already completed.
+        """
+        if self.is_completed:
+            return None
         self.is_completed = True
+        if self.frequency == Frequency.ONCE:
+            return None
+        today = today or date.today()
+        if self.frequency == Frequency.DAILY:
+            next_due = today + timedelta(days=1)
+        else:
+            # Weekly tasks recur by weekday, so step from the due date to keep that weekday.
+            next_due = (self.due_date or today) + timedelta(weeks=1)
+        next_task = replace(self, is_completed=False, due_date=next_due)
+        self.pet.add_task(next_task)
+        return next_task
 
     def reset(self) -> None:
         """Clear completion, e.g. at the start of a new day for recurring tasks."""
@@ -209,6 +228,53 @@ class Scheduler:
                 t.duration_minutes,
             ),
         )
+
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Order by preferred start time; tasks with no preferred time go last."""
+        # "HH:MM" strings sort chronologically because they are zero-padded; "99:99" sorts last.
+        return sorted(
+            tasks,
+            key=lambda t: t.preferred_time.start.strftime("%H:%M") if t.preferred_time else "99:99",
+        )
+
+    def filter_tasks(
+        self,
+        tasks: list[Task] | None = None,
+        completed: bool | None = None,
+        pet_name: str | None = None,
+    ) -> list[Task]:
+        """Filter by completion status and/or pet name (case-insensitive); None skips a filter.
+
+        Defaults to every task on every pet, including completed ones.
+        """
+        if tasks is None:
+            tasks = [t for pet in self.owner.pets for t in pet.tasks]
+        return [
+            t
+            for t in tasks
+            if (completed is None or t.is_completed == completed)
+            and (pet_name is None or t.pet.name.lower() == pet_name.lower())
+        ]
+
+    def detect_conflicts(self, day: date) -> list[str]:
+        """Warnings for pending tasks due on `day` whose preferred times overlap.
+
+        Covers the same pet and different pets. Returns messages instead of raising, so the
+        caller decides whether to show or ignore them.
+        """
+        timed = [t for t in self.owner.get_all_tasks(day) if t.preferred_time is not None]
+        timed.sort(key=lambda t: t.preferred_time.start)
+        warnings = []
+        for a, b in combinations(timed, 2):  # a task per day is a handful, so O(n^2) is fine
+            if a.preferred_time.overlaps(b.preferred_time):
+                scope = "same pet" if a.pet is b.pet else "different pets"
+                warnings.append(
+                    f"WARNING ({scope}): {a.pet.name}: {a.title} "
+                    f"({a.preferred_time.start:%H:%M}-{a.preferred_time.end:%H:%M}) overlaps "
+                    f"{b.pet.name}: {b.title} "
+                    f"({b.preferred_time.start:%H:%M}-{b.preferred_time.end:%H:%M})"
+                )
+        return warnings
 
     def schedule_tasks(self, day: date) -> DailyPlan:
         """Place tasks into non-overlapping free windows; leftovers go to `unscheduled`."""
