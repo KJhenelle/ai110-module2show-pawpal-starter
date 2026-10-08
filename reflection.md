@@ -18,13 +18,40 @@ Methods
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+Initial UML design:
+The scheduler plans for the owner and creates a daily plan using the time availibility. The Owner class owns a a pet which has a task that is contained in the daily plan That task is one of three priorities and task types and it has a prefered time which is placed in the time slot. 
+
+Classes included:
+Owner 
+Pet
+Task 
+TimeSlot
+Scheduler
+DailyPlan
+ScheduledItem
+TaskType
+Priority 
+    
+
+
 
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+
+ - PetTask = tuple[Pet, Task] now links a task to its pet. Owner.get_all_tasks(day) returns these pairs, and DailyPlan.unscheduled holds them too.
+ -  I removed Owner.available_minutes_per_day. Scheduler.availability is now the only record of free time.
+ - Task.due_date is new, and None means the task recurs daily. Task.is_due(day) is a new stub. schedule_tasks(day) takes a day, and get_all_tasks(day) only returns pending tasks due that day.
+ -  Owner.save_info(path) now takes a path to save to.
+ -  DailyPlan.add_item now takes the pet.
+ - Rename: I renamed DailyPlan.date to day, because the field name was shadowing the date type.
+ - Time slots: TimeSlot is frozen and rejects an end time that isn't after the start.
+ - Required tasks: Task.required marks tasks like meds that can't be dropped. DailyPlan.has_missed_required() is a new stub that reports when one was.
+ - Ordering and explanation: The docstrings say prioritize_tasks orders by required, then priority, then preferred time, then shorter duration. They say explain_choices joins each item's reason and explains why tasks were left out.
+ - Completed tasks: completed tasks are skipped through get_all_tasks.
+ - Pet age: Pet.age is now age_months.
 
 ---
 

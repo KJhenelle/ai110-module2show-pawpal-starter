@@ -1,15 +1,94 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
-
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +String name
+        +String email
+        +List~Pet~ pets
+        +saveInfo(path String) void
+        +addPet(pet Pet) void
+        +getAllTasks(day Date) List~PetTask~
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +String name
+        +String species
+        +int ageMonths
+        +String notes
+        +List~Task~ tasks
+        +addTask(task Task) void
+        +removeTask(task Task) void
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +String title
+        +TaskType type
+        +int durationMinutes
+        +Priority priority
+        +TimeSlot preferredTime
+        +Date dueDate
+        +bool required
+        +bool isCompleted
+        +isDue(day Date) bool
+        +markComplete() void
+    }
+
+    class TimeSlot {
+        <<frozen>>
+        +Time start
+        +Time end
+        +durationMinutes() int
+        +overlaps(other TimeSlot) bool
+    }
+
+    class Scheduler {
+        +Owner owner
+        +List~TimeSlot~ availability
+        +prioritizeTasks(tasks List~PetTask~) List~PetTask~
+        +scheduleTasks(day Date) DailyPlan
+        +explainChoices(plan DailyPlan) String
+    }
+
+    class DailyPlan {
+        +Date day
+        +List~ScheduledItem~ items
+        +List~PetTask~ unscheduled
+        +addItem(task Task, pet Pet, slot TimeSlot, reason String) void
+        +hasMissedRequired() bool
+        +totalMinutes() int
+    }
+
+    class ScheduledItem {
+        +Task task
+        +Pet pet
+        +TimeSlot slot
+        +String reason
+    }
+
+    class TaskType {
+        <<enumeration>>
+        WALK
+        FEEDING
+        MEDS
+        ENRICHMENT
+        GROOMING
+    }
+
+    class Priority {
+        <<enumeration>>
+        HIGH
+        MEDIUM
+        LOW
+    }
+
+    Owner "1" o-- "*" Pet : owns
+    Pet "1" *-- "*" Task : has
+    Task --> TaskType
+    Task --> Priority
+    Task --> TimeSlot : preferred time
+    Scheduler --> Owner : plans for
+    Scheduler --> TimeSlot : free windows
+    Scheduler ..> DailyPlan : creates
+    DailyPlan "1" *-- "*" ScheduledItem : contains
+    DailyPlan ..> Pet : unscheduled PetTask
+    ScheduledItem --> Task
+    ScheduledItem --> Pet
+    ScheduledItem --> TimeSlot
