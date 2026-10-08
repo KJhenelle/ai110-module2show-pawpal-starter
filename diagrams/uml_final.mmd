@@ -1,0 +1,110 @@
+classDiagram
+    class Owner {
+        +String name
+        +String email
+        +List~Pet~ pets
+        +addPet(pet Pet) void
+        +getAllTasks(day Date) List~Task~
+        +saveInfo(path String) void
+    }
+
+    class Pet {
+        +String name
+        +String species
+        +int age
+        +String notes
+        +List~Task~ tasks
+        +addTask(task Task) void
+        +removeTask(task Task) void
+    }
+
+    class Task {
+        +String title
+        +Pet pet
+        +TaskType type
+        +int durationMinutes
+        +Priority priority
+        +Frequency frequency
+        +TimeSlot preferredTime
+        +Date dueDate
+        +bool required
+        +bool isCompleted
+        +isDue(day Date) bool
+        +markComplete(today Date) Task
+        +reset() void
+    }
+
+    class TimeSlot {
+        <<frozen>>
+        +Time start
+        +Time end
+        +durationMinutes() int
+        +overlaps(other TimeSlot) bool
+    }
+
+    class Scheduler {
+        +Owner owner
+        +List~TimeSlot~ availability
+        +prioritizeTasks(tasks List~Task~) List~Task~
+        +sortByTime(tasks List~Task~) List~Task~
+        +filterTasks(tasks List~Task~, completed bool, petName String) List~Task~
+        +detectConflicts(day Date) List~String~
+        +scheduleTasks(day Date) DailyPlan
+        +explainChoices(plan DailyPlan) String
+    }
+
+    class DailyPlan {
+        +Date date
+        +List~ScheduledItem~ items
+        +List~Task~ unscheduled
+        +addItem(task Task, slot TimeSlot, reason String) void
+        +hasMissedRequired() bool
+        +totalMinutes() int
+    }
+
+    class ScheduledItem {
+        +Task task
+        +Pet pet
+        +TimeSlot slot
+        +String reason
+    }
+
+    class TaskType {
+        <<enumeration>>
+        WALK
+        FEEDING
+        MEDS
+        ENRICHMENT
+        GROOMING
+    }
+
+    class Priority {
+        <<enumeration>>
+        HIGH
+        MEDIUM
+        LOW
+    }
+
+    class Frequency {
+        <<enumeration>>
+        ONCE
+        DAILY
+        WEEKLY
+    }
+
+    Owner "1" o-- "*" Pet : owns
+    Pet "1" *-- "*" Task : has
+    Task --> Pet : belongs to
+    Task --> TaskType
+    Task --> Priority
+    Task --> Frequency
+    Task --> TimeSlot : preferred time
+    Task ..> Task : markComplete creates next occurrence
+    Scheduler --> Owner : plans for
+    Scheduler --> TimeSlot : free windows
+    Scheduler ..> DailyPlan : creates
+    DailyPlan "1" *-- "*" ScheduledItem : contains
+    DailyPlan --> Task : unscheduled
+    ScheduledItem --> Task
+    ScheduledItem --> Pet
+    ScheduledItem --> TimeSlot

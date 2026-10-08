@@ -172,21 +172,48 @@ with tab_tasks:
     else:
         st.info("Add a pet first, then you can give it tasks.")
 
-    for t in all_tasks:
-        pref = (
-            f" · prefers {t.preferred_time.start:%H:%M}-{t.preferred_time.end:%H:%M}"
-            if t.preferred_time
-            else ""
+    if all_tasks:
+        st.markdown("#### Your tasks")
+        f1, f2 = st.columns(2)
+        pet_filter = f1.selectbox("Show pet", ["All"] + [p.name for p in owner.pets])
+        status_filter = f2.selectbox("Show status", ["All", "Pending", "Completed"])
+        browser = Scheduler(owner, st.session_state.availability)
+        shown = browser.sort_by_time(
+            browser.filter_tasks(
+                completed={"All": None, "Pending": False, "Completed": True}[status_filter],
+                pet_name=None if pet_filter == "All" else pet_filter,
+            )
         )
-        st.markdown(
-            f"""
-<div class="card">
-  <div class="title">{TYPE_EMOJI[t.type]} {escape(t.title)}{badge(t.priority)}
-  {'<span class="badge" style="background:#6e56cf">Required</span>' if t.required else ""}</div>
-  <div class="meta">{escape(t.pet.name)} · {t.duration_minutes} min · {t.frequency.name.title()}{pref}</div>
-</div>""",
-            unsafe_allow_html=True,
-        )
+        st.caption(f"{len(shown)} task(s), sorted by preferred time.")
+        if shown:
+            st.table(
+                [
+                    {
+                        "Time": f"{t.preferred_time.start:%H:%M}-{t.preferred_time.end:%H:%M}"
+                        if t.preferred_time
+                        else "Anytime",
+                        "Pet": t.pet.name,
+                        "Task": t.title,
+                        "Priority": t.priority.name.title(),
+                        "Repeats": t.frequency.name.title(),
+                        "Minutes": t.duration_minutes,
+                        "Status": "Done" if t.is_completed else "Pending",
+                    }
+                    for t in shown
+                ]
+            )
+
+        pending = [t for t in all_tasks if not t.is_completed]
+        if pending:
+            labels = {f"{t.pet.name}: {t.title}  (#{i + 1})": t for i, t in enumerate(pending)}
+            done_choice = st.selectbox("Mark a task complete", list(labels))
+            if st.button("Mark complete"):
+                nxt = labels[done_choice].mark_complete()
+                if nxt:
+                    st.toast(f"Done! Next {nxt.frequency.name.lower()} copy is due {nxt.due_date}.")
+                else:
+                    st.toast("Done!")
+                st.rerun()
 
 # --- Availability ----------------------------------------------------------
 with tab_time:
@@ -225,6 +252,17 @@ with tab_plan:
         s1, s2 = st.columns(2)
         s1.metric("Tasks scheduled", len(plan.items))
         s2.metric("Minutes of care", plan.total_minutes())
+
+        conflicts = scheduler.detect_conflicts(plan_day)
+        if conflicts:
+            st.warning(
+                "**Scheduling conflicts:** these tasks want overlapping times. The plan below "
+                "still fits everything it can, but some tasks were moved off their preferred time."
+            )
+            for message in conflicts:
+                st.warning(message.replace("WARNING ", ""))
+        else:
+            st.success("No conflicts: no two tasks want the same time.")
 
         for i in plan.items:
             st.markdown(

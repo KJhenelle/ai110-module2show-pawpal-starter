@@ -59,8 +59,7 @@ Priority
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers four constraints: the owner's free time windows, whether a task is required (like meds), task priority, and each task's preferred time and duration. I ranked them in that order: a required task that is dropped is a real harm to the pet, priority decides which of the remaining tasks matter most, and a preferred time is a nice-to-have that the scheduler will give up (and say so) when the window is taken. Duration is the final tie-breaker, so short tasks fit into leftover gaps.
 
 **b. Tradeoffs**
 
@@ -77,13 +76,11 @@ This is reasonable for a pet owner because a task done at the wrong time usually
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used Claude Code for UML brainstorming, generating the class skeleton, implementing the scheduler, drafting tests, and reviewing my skeleton for missing relationships. The most useful prompts were specific and tied to my files, for example "how should the Scheduler retrieve all tasks from the Owner's pets?" and "what edge cases matter for sorting and recurring tasks?". Broad prompts like "make it smarter" gave generic results.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+One example is conflict detection. The simplest suggestion is to flag only tasks with exactly the same start time, but that misses real clashes like 8:00-8:30 against 8:15-8:45, so I kept an overlap check built on `TimeSlot.overlaps`. I also kept the readable `sort_by_time` key on "HH:MM" strings instead of a terser one-liner. I verified suggestions by running `main.py` with deliberate conflicts and out-of-order tasks, and by writing tests that pin down the edge cases (back-to-back tasks are not conflicts, completing a task twice does not duplicate it).
 
 ---
 
@@ -91,13 +88,11 @@ This is reasonable for a pet owner because a task done at the wrong time usually
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+I tested sorting (including tasks with no time), filtering by pet and status, daily/weekly/once recurrence, conflict detection (same pet, different pets, exact duplicates, back-to-back, completed tasks), and scheduling edge cases (a pet with no tasks, no overlapping slots, required tasks winning scarce time, leftovers reported). These are the behaviors the owner relies on: a wrong sort order or a silently missed medication would make the plan untrustworthy.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+About 4 out of 5. All 15 tests pass and the algorithms are covered, but the Streamlit UI was only smoke-tested. Next I would test tasks that cross midnight, tasks longer than any free window, many tasks competing for one window, and weekly tasks completed on a different weekday than their due date.
 
 ---
 
@@ -105,12 +100,18 @@ This is reasonable for a pet owner because a task done at the wrong time usually
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+I am most satisfied with the separation between the logic layer (`pawpal_system.py`) and the UI. Because the scheduler works from the terminal first, the Streamlit app only had to call existing methods, and the plan explains its own choices.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+I would let the scheduler move conflicting tasks to a nearby time instead of only warning, support tasks that overlap by duration after being rescheduled, and persist data (`Owner.save_info` writes JSON but nothing loads it back yet).
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+AI can produce a lot of working code quickly, so the human job shifts to being the lead architect: deciding what the classes are, what each one is responsible for, and which tradeoffs are acceptable. My design changed several times (adding `Frequency`, giving `Task` a back-reference to its `Pet`, removing `available_minutes_per_day`), and each change was a decision I had to make and then verify with tests rather than trust.
+
+**AI strategy notes**
+
+- *Most effective features:* agent-style multi-file edits (changing `Task`, `Scheduler` and `main.py` together for recurrence) and asking the assistant to review my skeleton against my UML.
+- *Rejected/modified suggestion:* see 3b above, where I kept overlap-based conflict detection and the readable sort key.
+- *Separate chat sessions per phase:* I kept design, implementation, algorithms and testing as separate conversations so each had focused context and I could compare what each one proposed.
